@@ -97,12 +97,23 @@ function useStorage(key, initial) {
   return [value, persist, loaded];
 }
 
+function useIsMobile() {
+  const [isMobile, setIsMobile] = useState(typeof window !== "undefined" ? window.innerWidth <= 860 : false);
+  useEffect(() => {
+    const onResize = () => setIsMobile(window.innerWidth <= 860);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, []);
+  return isMobile;
+}
+
 export default function App() {
   const [mode, setMode] = useState("dark");
   const t = THEMES[mode];
   const [role, setRole] = useState("admin"); // 'admin' | 'technician'
   const [tab, setTab] = useState("dashboard");
   const [search, setSearch] = useState("");
+  const isMobile = useIsMobile();
 
   const [items, setItems, itemsLoaded] = useStorage("qc-items", null);
   const [categories, setCategories, catLoaded] = useStorage("qc-categories", null);
@@ -270,10 +281,11 @@ export default function App() {
   }
 
   return (
-    <div style={{ background: t.bg, color: t.text, minHeight: "100vh", fontFamily: "'Inter', sans-serif", transition: "background .25s, color .25s" }}>
+    <div style={{ background: t.bg, color: t.text, minHeight: "100vh", fontFamily: "'Inter', sans-serif", transition: "background .25s, color .25s", overflowX: "hidden", width: "100%" }}>
       <style>{`
         @import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@500;600;700&family=Inter:wght@400;500;600;700&display=swap');
         * { box-sizing: border-box; }
+        html, body { overflow-x: hidden; }
         .sg { font-family: 'Space Grotesk', sans-serif; }
         .tab-btn { transition: background .15s, color .15s; }
         table { border-collapse: collapse; width: 100%; }
@@ -283,27 +295,32 @@ export default function App() {
         @keyframes pulse { 0%,100%{ opacity:1 } 50%{ opacity:.4 } }
       `}</style>
 
-      <TopBar t={t} mode={mode} setMode={setMode} role={role} setRole={setRole} search={search} setSearch={setSearch} />
+      <TopBar t={t} mode={mode} setMode={setMode} role={role} setRole={setRole} search={search} setSearch={setSearch} isMobile={isMobile} />
 
-      <div style={{ display: "flex", maxWidth: 1280, margin: "0 auto" }}>
-        <nav style={{ width: 210, flexShrink: 0, padding: "20px 12px", borderRight: `1px solid ${t.border}`, minHeight: "calc(100vh - 64px)" }}>
+      <div style={{ display: "flex", flexDirection: isMobile ? "column" : "row", maxWidth: 1280, margin: "0 auto" }}>
+        <nav style={
+          isMobile
+            ? { display: "flex", overflowX: "auto", gap: 6, padding: "10px 12px", borderBottom: `1px solid ${t.border}`, WebkitOverflowScrolling: "touch" }
+            : { width: 210, flexShrink: 0, padding: "20px 12px", borderRight: `1px solid ${t.border}`, minHeight: "calc(100vh - 64px)" }
+        }>
           {NAV.map((n) => (
             <button
               key={n.key}
               onClick={() => setTab(n.key)}
               className="tab-btn"
               style={{
-                display: "flex", alignItems: "center", gap: 10, width: "100%",
-                padding: "10px 12px", marginBottom: 4, borderRadius: 10, border: "none",
-                cursor: "pointer", fontSize: 14, fontWeight: 600, textAlign: "left",
+                display: "flex", alignItems: "center", gap: 8, width: isMobile ? "auto" : "100%",
+                flexShrink: 0,
+                padding: isMobile ? "8px 12px" : "10px 12px", marginBottom: isMobile ? 0 : 4, borderRadius: 10, border: "none",
+                cursor: "pointer", fontSize: isMobile ? 12.5 : 14, fontWeight: 600, textAlign: "left", whiteSpace: "nowrap",
                 background: tab === n.key ? t.primarySoft : "transparent",
                 color: tab === n.key ? t.primary : t.textMuted,
               }}
             >
-              <n.icon size={17} />
+              <n.icon size={16} />
               {n.label}
               {!!n.badge && (
-                <span style={{ marginLeft: "auto", background: t.danger, color: "#fff", fontSize: 11, borderRadius: 999, padding: "1px 7px", fontWeight: 700 }}>
+                <span style={{ marginLeft: isMobile ? 2 : "auto", background: t.danger, color: "#fff", fontSize: 10.5, borderRadius: 999, padding: "1px 6px", fontWeight: 700 }}>
                   {n.badge}
                 </span>
               )}
@@ -311,14 +328,14 @@ export default function App() {
           ))}
         </nav>
 
-        <main style={{ flex: 1, padding: "24px 28px" }}>
-          {tab === "dashboard" && <Dashboard t={t} counts={counts} items={safeItems} categories={safeCategories} statusOf={statusOf} recentActivity={recentActivity} itemName={itemName} setTab={setTab} />}
-          {tab === "inventory" && <Inventory t={t} role={role} items={filteredItems} categories={safeCategories} statusOf={statusOf} addItem={addItem} updateItem={updateItem} deleteItem={deleteItem} />}
-          {tab === "receiving" && <Receiving t={t} items={safeItems} receipts={safeReceipts} addReceipt={addReceipt} itemName={itemName} categories={safeCategories} commitQuickRow={commitQuickRow} />}
-          {tab === "issue" && <IssueTab t={t} items={safeItems} issues={safeIssues} addIssue={addIssue} itemName={itemName} />}
-          {tab === "indent" && <IndentTab t={t} role={role} indents={safeIndents} items={safeItems} itemName={itemName} advanceIndent={advanceIndent} />}
-          {tab === "transactions" && <Transactions t={t} receipts={safeReceipts} issues={safeIssues} itemName={itemName} />}
-          {tab === "categories" && <Categories t={t} categories={safeCategories} addCategory={addCategory} items={safeItems} />}
+        <main style={{ flex: 1, padding: isMobile ? "16px 12px" : "24px 28px", minWidth: 0, maxWidth: "100vw", overflowX: "hidden" }}>
+          {tab === "dashboard" && <Dashboard t={t} counts={counts} items={safeItems} categories={safeCategories} statusOf={statusOf} recentActivity={recentActivity} itemName={itemName} setTab={setTab} isMobile={isMobile} />}
+          {tab === "inventory" && <Inventory t={t} role={role} items={filteredItems} categories={safeCategories} statusOf={statusOf} addItem={addItem} updateItem={updateItem} deleteItem={deleteItem} isMobile={isMobile} />}
+          {tab === "receiving" && <Receiving t={t} items={safeItems} receipts={safeReceipts} addReceipt={addReceipt} itemName={itemName} categories={safeCategories} commitQuickRow={commitQuickRow} isMobile={isMobile} />}
+          {tab === "issue" && <IssueTab t={t} items={safeItems} issues={safeIssues} addIssue={addIssue} itemName={itemName} isMobile={isMobile} />}
+          {tab === "indent" && <IndentTab t={t} role={role} indents={safeIndents} items={safeItems} itemName={itemName} advanceIndent={advanceIndent} isMobile={isMobile} />}
+          {tab === "transactions" && <Transactions t={t} receipts={safeReceipts} issues={safeIssues} itemName={itemName} isMobile={isMobile} />}
+          {tab === "categories" && <Categories t={t} categories={safeCategories} addCategory={addCategory} items={safeItems} isMobile={isMobile} />}
         </main>
       </div>
     </div>
@@ -326,45 +343,49 @@ export default function App() {
 }
 
 // ---------- Top bar ----------
-function TopBar({ t, mode, setMode, role, setRole, search, setSearch }) {
+function TopBar({ t, mode, setMode, role, setRole, search, setSearch, isMobile }) {
   return (
     <header style={{ borderBottom: `1px solid ${t.border}`, background: t.surface, position: "sticky", top: 0, zIndex: 10 }}>
-      <div style={{ maxWidth: 1280, margin: "0 auto", padding: "0 24px", height: 64, display: "flex", alignItems: "center", gap: 16 }}>
+      <div style={{
+        maxWidth: 1280, margin: "0 auto", padding: isMobile ? "10px 12px" : "0 24px",
+        minHeight: isMobile ? "auto" : 64, display: "flex", flexWrap: isMobile ? "wrap" : "nowrap",
+        alignItems: "center", gap: isMobile ? 8 : 16,
+      }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div style={{ width: 34, height: 34, borderRadius: 9, background: t.primary, display: "flex", alignItems: "center", justifyContent: "center" }}>
-            <Package size={18} color={mode === "dark" ? "#0E1614" : "#fff"} />
+          <div style={{ width: 30, height: 30, borderRadius: 9, background: t.primary, display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+            <Package size={16} color={mode === "dark" ? "#0E1614" : "#fff"} />
           </div>
-          <div className="sg" style={{ fontWeight: 700, fontSize: 17 }}>QC Stock Manager</div>
+          <div className="sg" style={{ fontWeight: 700, fontSize: isMobile ? 14.5 : 17 }}>QC Stock Manager</div>
         </div>
 
-        <div style={{ flex: 1, maxWidth: 360, marginLeft: 24, position: "relative" }}>
-          <Search size={15} style={{ position: "absolute", left: 10, top: 10, color: t.textMuted }} />
+        <div style={{ marginLeft: isMobile ? "auto" : 0, display: "flex", alignItems: "center", gap: 8, order: isMobile ? 2 : 0 }}>
+          <button
+            onClick={() => setRole(role === "admin" ? "technician" : "admin")}
+            style={{ display: "flex", alignItems: "center", gap: 6, padding: isMobile ? "6px 9px" : "7px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: t.surfaceAlt, color: t.text, fontSize: 12, fontWeight: 600, cursor: "pointer" }}
+            title="Toggle role"
+          >
+            <UserCog size={13} /> {!isMobile && (role === "admin" ? "Admin" : "Technician")}
+          </button>
+          <button
+            onClick={() => setMode(mode === "dark" ? "light" : "dark")}
+            style={{ width: 32, height: 32, borderRadius: 8, border: `1px solid ${t.border}`, background: t.surfaceAlt, color: t.text, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0 }}
+            title="Toggle theme"
+          >
+            {mode === "dark" ? <Sun size={15} /> : <Moon size={15} />}
+          </button>
+        </div>
+
+        <div style={{ flex: 1, minWidth: isMobile ? "100%" : 200, maxWidth: isMobile ? "100%" : 360, marginLeft: isMobile ? 0 : 24, position: "relative", order: isMobile ? 3 : 0 }}>
+          <Search size={14} style={{ position: "absolute", left: 10, top: isMobile ? 9 : 10, color: t.textMuted }} />
           <input
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Search item, category, invoice…"
             style={{
-              width: "100%", padding: "8px 10px 8px 32px", borderRadius: 8,
-              border: `1px solid ${t.border}`, background: t.bg, color: t.text, fontSize: 13, outline: "none",
+              width: "100%", padding: isMobile ? "7px 10px 7px 30px" : "8px 10px 8px 32px", borderRadius: 8,
+              border: `1px solid ${t.border}`, background: t.bg, color: t.text, fontSize: 12.5, outline: "none", boxSizing: "border-box",
             }}
           />
-        </div>
-
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
-          <button
-            onClick={() => setRole(role === "admin" ? "technician" : "admin")}
-            style={{ display: "flex", alignItems: "center", gap: 6, padding: "7px 12px", borderRadius: 8, border: `1px solid ${t.border}`, background: t.surfaceAlt, color: t.text, fontSize: 12.5, fontWeight: 600, cursor: "pointer" }}
-            title="Toggle role"
-          >
-            <UserCog size={14} /> {role === "admin" ? "Admin" : "Technician"}
-          </button>
-          <button
-            onClick={() => setMode(mode === "dark" ? "light" : "dark")}
-            style={{ width: 34, height: 34, borderRadius: 8, border: `1px solid ${t.border}`, background: t.surfaceAlt, color: t.text, display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer" }}
-            title="Toggle theme"
-          >
-            {mode === "dark" ? <Sun size={16} /> : <Moon size={16} />}
-          </button>
         </div>
       </div>
     </header>
@@ -411,7 +432,7 @@ function Label({ t, children }) {
 }
 
 // ---------- Dashboard ----------
-function Dashboard({ t, counts, items, categories, statusOf, recentActivity, itemName, setTab }) {
+function Dashboard({ t, counts, items, categories, statusOf, recentActivity, itemName, setTab, isMobile }) {
   const catBreakdown = categories.map((c) => ({ c, n: items.filter((i) => i.category === c).length }));
   const stats = [
     { label: "Total Items", value: counts.total, icon: Package, color: t.primary },
@@ -421,10 +442,10 @@ function Dashboard({ t, counts, items, categories, statusOf, recentActivity, ite
   ];
   return (
     <div>
-      <h1 className="sg" style={{ fontSize: 22, marginBottom: 2 }}>Dashboard</h1>
+      <h1 className="sg" style={{ fontSize: isMobile ? 19 : 22, marginBottom: 2 }}>Dashboard</h1>
       <p style={{ color: t.textMuted, fontSize: 13.5, marginBottom: 20 }}>Central overview — every tab stays in sync with this data.</p>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 14, marginBottom: 20 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "repeat(2, 1fr)" : "repeat(4, 1fr)", gap: isMobile ? 10 : 14, marginBottom: 20 }}>
         {stats.map((s) => (
           <Card key={s.label} t={t}>
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
@@ -440,8 +461,8 @@ function Dashboard({ t, counts, items, categories, statusOf, recentActivity, ite
         ))}
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "1.3fr 1fr", gap: 14 }}>
-        <Card t={t}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1.3fr 1fr", gap: 14 }}>
+        <Card t={t} style={{ overflowX: "auto" }}>
           <div className="sg" style={{ fontWeight: 700, fontSize: 14, marginBottom: 12 }}>Stock Status by Item</div>
           <table>
             <thead><tr><Th t={t}>Item</Th><Th t={t}>Category</Th><Th t={t}>Stock</Th><Th t={t}>Min</Th><Th t={t}>Status</Th></tr></thead>
@@ -492,7 +513,7 @@ function Dashboard({ t, counts, items, categories, statusOf, recentActivity, ite
 }
 
 // ---------- Inventory ----------
-function Inventory({ t, role, items, categories, statusOf, addItem, updateItem, deleteItem }) {
+function Inventory({ t, role, items, categories, statusOf, addItem, updateItem, deleteItem, isMobile }) {
   const [showForm, setShowForm] = useState(false);
   const [editId, setEditId] = useState(null);
   const blank = { name: "", category: categories[0], unit: UNIT_BY_CATEGORY[categories[0]] || "pcs", currentStock: 0, minStock: 0, reorderStock: 0, batch: "", expiry: "", critical: false, manufacturer: "" };
@@ -511,15 +532,15 @@ function Inventory({ t, role, items, categories, statusOf, addItem, updateItem, 
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
         <div>
-          <h1 className="sg" style={{ fontSize: 22 }}>Inventory</h1>
+          <h1 className="sg" style={{ fontSize: isMobile ? 19 : 22 }}>Inventory</h1>
           <p style={{ color: t.textMuted, fontSize: 13.5 }}>{items.length} items across {categories.length} categories</p>
         </div>
         {role === "admin" && <PrimaryBtn t={t} onClick={openNew}><Plus size={15} /> Add Item</PrimaryBtn>}
       </div>
 
-      <Card t={t} style={{ padding: 0, overflow: "hidden" }}>
+      <Card t={t} style={{ padding: 0, overflowX: "auto" }}>
         <table>
           <thead><tr>
             <Th t={t}>Item</Th><Th t={t}>Category</Th><Th t={t}>Stock</Th><Th t={t}>Min / Reorder</Th>
@@ -551,7 +572,7 @@ function Inventory({ t, role, items, categories, statusOf, addItem, updateItem, 
 
       {showForm && (
         <Modal t={t} onClose={() => setShowForm(false)} title={editId ? "Edit Item" : "Add Item"}>
-          <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+          <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr" : "1fr 1fr", gap: 12 }}>
             <div style={{ gridColumn: "span 2" }}><Label t={t}>Item Name</Label><Input t={t} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} required /></div>
             <div><Label t={t}>Category</Label>
               <Select t={t} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value, unit: UNIT_BY_CATEGORY[e.target.value] || form.unit })}>
@@ -640,9 +661,7 @@ function QuickEntryGrid({ t, items, categories, commitQuickRow }) {
                   <td style={cellStyle}>
                     {!r.saved ? (
                       <button onClick={() => saveRow(r.id)} title="Save row" style={{ background: t.primary, color: t.onPrimary, border: "none", borderRadius: 6, width: 26, height: 26, cursor: "pointer", fontWeight: 700, fontSize: 13 }}>✓</button>
-                    ) : (
-                      rows.length > 1 && idx !== rows.length - 1 ? null : null
-                    )}
+                    ) : null}
                     {!r.saved && rows.length > 1 && (
                       <button onClick={() => removeRow(r.id)} title="Remove row" style={{ background: "none", color: t.danger, border: "none", cursor: "pointer", marginLeft: 4 }}><Trash2 size={13} /></button>
                     )}
@@ -664,7 +683,7 @@ function QuickEntryGrid({ t, items, categories, commitQuickRow }) {
 }
 
 // ---------- Receiving ----------
-function Receiving({ t, items, receipts, addReceipt, itemName, categories, commitQuickRow }) {
+function Receiving({ t, items, receipts, addReceipt, itemName, categories, commitQuickRow, isMobile }) {
   const blank = { itemId: items[0]?.id || "", date: todayStr(), manufacturer: "", invoiceNo: "", qty: "", unitPrice: "" };
   const [form, setForm] = useState(blank);
   const [filterItem, setFilterItem] = useState("all");
@@ -680,7 +699,7 @@ function Receiving({ t, items, receipts, addReceipt, itemName, categories, commi
 
   return (
     <div>
-      <h1 className="sg" style={{ fontSize: 22, marginBottom: 2 }}>Stock Receiving (GRN)</h1>
+      <h1 className="sg" style={{ fontSize: isMobile ? 19 : 22, marginBottom: 2 }}>Stock Receiving (GRN)</h1>
       <p style={{ color: t.textMuted, fontSize: 13.5, marginBottom: 16 }}>Log every incoming batch — total price auto-calculates, stock updates instantly.</p>
 
       <div className="sg" style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Quick Entry (spreadsheet style)</div>
@@ -688,14 +707,14 @@ function Receiving({ t, items, receipts, addReceipt, itemName, categories, commi
 
       <div className="sg" style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Detailed Entry Form</div>
       <Card t={t} style={{ marginBottom: 20 }}>
-        <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "repeat(6, 1fr)", gap: 12, alignItems: "end" }}>
+        <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(6, 1fr)", gap: 12, alignItems: "end" }}>
           <div><Label t={t}>Item</Label><Select t={t} value={form.itemId} onChange={(e) => setForm({ ...form, itemId: e.target.value })}>{items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</Select></div>
           <div><Label t={t}>Date Received</Label><Input t={t} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
           <div><Label t={t}>Manufacturer</Label><Input t={t} value={form.manufacturer} onChange={(e) => setForm({ ...form, manufacturer: e.target.value })} /></div>
           <div><Label t={t}>Invoice No.</Label><Input t={t} value={form.invoiceNo} onChange={(e) => setForm({ ...form, invoiceNo: e.target.value })} /></div>
           <div><Label t={t}>Qty</Label><Input t={t} type="number" value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} required /></div>
           <div><Label t={t}>Unit Price / pc</Label><Input t={t} type="number" step="0.01" value={form.unitPrice} onChange={(e) => setForm({ ...form, unitPrice: e.target.value })} required /></div>
-          <div style={{ gridColumn: "span 6", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <div style={{ gridColumn: isMobile ? "span 2" : "span 6", display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: 10 }}>
             <div style={{ fontSize: 13, color: t.textMuted }}>Total Price: <b style={{ color: t.text }}>{fmtMoney((form.qty || 0) * (form.unitPrice || 0))}</b></div>
             <PrimaryBtn t={t} type="submit"><Plus size={15} /> Add Receipt Entry</PrimaryBtn>
           </div>
@@ -704,9 +723,9 @@ function Receiving({ t, items, receipts, addReceipt, itemName, categories, commi
 
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 10 }}>
         <div className="sg" style={{ fontWeight: 700, fontSize: 14 }}>Receiving History (Multi-Receipt Log)</div>
-        <div style={{ width: 220 }}><Select t={t} value={filterItem} onChange={(e) => setFilterItem(e.target.value)}><option value="all">All items</option>{items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</Select></div>
+        <div style={{ width: isMobile ? 150 : 220 }}><Select t={t} value={filterItem} onChange={(e) => setFilterItem(e.target.value)}><option value="all">All items</option>{items.map((i) => <option key={i.id} value={i.id}>{i.name}</option>)}</Select></div>
       </div>
-      <Card t={t} style={{ padding: 0, overflow: "hidden" }}>
+      <Card t={t} style={{ padding: 0, overflowX: "auto" }}>
         <table>
           <thead><tr><Th t={t}>Item</Th><Th t={t}>Pack Size</Th><Th t={t}>Date</Th><Th t={t}>Manufacturer</Th><Th t={t}>Invoice No.</Th><Th t={t}>Qty</Th><Th t={t}>Unit Price</Th><Th t={t}>Total Price</Th></tr></thead>
           <tbody>
@@ -726,7 +745,7 @@ function Receiving({ t, items, receipts, addReceipt, itemName, categories, commi
 }
 
 // ---------- Issue ----------
-function IssueTab({ t, items, issues, addIssue, itemName }) {
+function IssueTab({ t, items, issues, addIssue, itemName, isMobile }) {
   const blank = { itemId: items[0]?.id || "", date: todayStr(), qty: "", issuedTo: "" };
   const [form, setForm] = useState(blank);
 
@@ -742,21 +761,21 @@ function IssueTab({ t, items, issues, addIssue, itemName }) {
 
   return (
     <div>
-      <h1 className="sg" style={{ fontSize: 22, marginBottom: 2 }}>Material Issue</h1>
+      <h1 className="sg" style={{ fontSize: isMobile ? 19 : 22, marginBottom: 2 }}>Material Issue</h1>
       <p style={{ color: t.textMuted, fontSize: 13.5, marginBottom: 20 }}>Record material issued for testing — remaining qty and dashboard update automatically.</p>
 
       <Card t={t} style={{ marginBottom: 20 }}>
-        <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, alignItems: "end" }}>
+        <form onSubmit={submit} style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(4, 1fr)", gap: 12, alignItems: "end" }}>
           <div><Label t={t}>Item</Label><Select t={t} value={form.itemId} onChange={(e) => setForm({ ...form, itemId: e.target.value })}>{items.map((i) => <option key={i.id} value={i.id}>{i.name} ({i.currentStock} {i.unit} avail.)</option>)}</Select></div>
           <div><Label t={t}>Issue Date</Label><Input t={t} type="date" value={form.date} onChange={(e) => setForm({ ...form, date: e.target.value })} /></div>
           <div><Label t={t}>Qty Issued</Label><Input t={t} type="number" value={form.qty} onChange={(e) => setForm({ ...form, qty: e.target.value })} required /></div>
           <div><Label t={t}>Issued To / Purpose</Label><Input t={t} value={form.issuedTo} onChange={(e) => setForm({ ...form, issuedTo: e.target.value })} placeholder="e.g. NCO% testing" /></div>
-          <div style={{ gridColumn: "span 4" }}><PrimaryBtn t={t} type="submit"><Plus size={15} /> Record Issue</PrimaryBtn></div>
+          <div style={{ gridColumn: isMobile ? "span 2" : "span 4" }}><PrimaryBtn t={t} type="submit"><Plus size={15} /> Record Issue</PrimaryBtn></div>
         </form>
       </Card>
 
       <div className="sg" style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Issue Log</div>
-      <Card t={t} style={{ padding: 0, overflow: "hidden" }}>
+      <Card t={t} style={{ padding: 0, overflowX: "auto" }}>
         <table>
           <thead><tr><Th t={t}>Item</Th><Th t={t}>Issue Date</Th><Th t={t}>Qty Issued</Th><Th t={t}>Issued To</Th><Th t={t}>Remaining Stock</Th></tr></thead>
           <tbody>
@@ -777,7 +796,7 @@ function IssueTab({ t, items, issues, addIssue, itemName }) {
 
 // ---------- Indent ----------
 const STAGES = ["Low Stock", "Indent Raised", "Ordered", "Received"];
-function IndentTab({ t, role, indents, items, itemName, advanceIndent }) {
+function IndentTab({ t, role, indents, items, itemName, advanceIndent, isMobile }) {
   const active = indents.filter((x) => x.status !== "Received" && x.status !== "Cancelled").sort((a, b) => new Date(b.createdDate) - new Date(a.createdDate));
   const history = indents.filter((x) => x.status === "Received").sort((a, b) => new Date(b.updatedDate) - new Date(a.updatedDate)).slice(0, 10);
   const itemById = (id) => items.find((i) => i.id === id);
@@ -797,12 +816,12 @@ function IndentTab({ t, role, indents, items, itemName, advanceIndent }) {
 
   return (
     <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
-        <div><h1 className="sg" style={{ fontSize: 22 }}>Indent List</h1><p style={{ color: t.textMuted, fontSize: 13.5 }}>Auto-generated when stock falls below minimum.</p></div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16, flexWrap: "wrap", gap: 10 }}>
+        <div><h1 className="sg" style={{ fontSize: isMobile ? 19 : 22 }}>Indent List</h1><p style={{ color: t.textMuted, fontSize: 13.5 }}>Auto-generated when stock falls below minimum.</p></div>
         <button onClick={exportCSV} style={{ padding: "8px 14px", borderRadius: 9, border: `1px solid ${t.border}`, background: t.surfaceAlt, color: t.text, fontSize: 13, fontWeight: 600, cursor: "pointer" }}>Export CSV</button>
       </div>
 
-      <Card t={t} style={{ padding: 0, overflow: "hidden", marginBottom: 24 }}>
+      <Card t={t} style={{ padding: 0, overflowX: "auto", marginBottom: 24 }}>
         <table>
           <thead><tr><Th t={t}>Item</Th><Th t={t}>Category</Th><Th t={t}>Current / Min</Th><Th t={t}>Raised On</Th><Th t={t}>Stage</Th>{role === "admin" && <Th t={t}>Advance</Th>}</tr></thead>
           <tbody>
@@ -834,7 +853,7 @@ function IndentTab({ t, role, indents, items, itemName, advanceIndent }) {
       </Card>
 
       <div className="sg" style={{ fontWeight: 700, fontSize: 14, marginBottom: 10 }}>Recently Received (auto-cleared)</div>
-      <Card t={t} style={{ padding: 0, overflow: "hidden" }}>
+      <Card t={t} style={{ padding: 0, overflowX: "auto" }}>
         <table>
           <thead><tr><Th t={t}>Item</Th><Th t={t}>Cleared On</Th></tr></thead>
           <tbody>
@@ -854,7 +873,7 @@ function StageBadge({ t, stage }) {
 }
 
 // ---------- Transactions ----------
-function Transactions({ t, receipts, issues, itemName }) {
+function Transactions({ t, receipts, issues, itemName, isMobile }) {
   const rows = [
     ...receipts.map((r) => ({ ...r, type: "Receipt (In)" })),
     ...issues.map((r) => ({ ...r, type: "Issue (Out)" })),
@@ -862,9 +881,9 @@ function Transactions({ t, receipts, issues, itemName }) {
 
   return (
     <div>
-      <h1 className="sg" style={{ fontSize: 22, marginBottom: 2 }}>Stock Transaction Log</h1>
+      <h1 className="sg" style={{ fontSize: isMobile ? 19 : 22, marginBottom: 2 }}>Stock Transaction Log</h1>
       <p style={{ color: t.textMuted, fontSize: 13.5, marginBottom: 20 }}>Full audit trail — combined receiving and issue history.</p>
-      <Card t={t} style={{ padding: 0, overflow: "hidden" }}>
+      <Card t={t} style={{ padding: 0, overflowX: "auto" }}>
         <table>
           <thead><tr><Th t={t}>Type</Th><Th t={t}>Item</Th><Th t={t}>Date</Th><Th t={t}>Qty</Th><Th t={t}>Details</Th></tr></thead>
           <tbody>
@@ -886,22 +905,22 @@ function Transactions({ t, receipts, issues, itemName }) {
 }
 
 // ---------- Categories ----------
-function Categories({ t, categories, addCategory, items }) {
+function Categories({ t, categories, addCategory, items, isMobile }) {
   const [name, setName] = useState("");
   const submit = (e) => { e.preventDefault(); if (name.trim()) { addCategory(name.trim()); setName(""); } };
   return (
     <div>
-      <h1 className="sg" style={{ fontSize: 22, marginBottom: 2 }}>Categories</h1>
+      <h1 className="sg" style={{ fontSize: isMobile ? 19 : 22, marginBottom: 2 }}>Categories</h1>
       <p style={{ color: t.textMuted, fontSize: 13.5, marginBottom: 20 }}>Manage item categories — add custom ones anytime.</p>
 
       <Card t={t} style={{ marginBottom: 20 }}>
-        <form onSubmit={submit} style={{ display: "flex", gap: 10 }}>
-          <Input t={t} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Consumables, PPE, Instruments…" />
+        <form onSubmit={submit} style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+          <Input t={t} value={name} onChange={(e) => setName(e.target.value)} placeholder="e.g. Consumables, PPE, Instruments…" style={{ flex: 1, minWidth: 180 }} />
           <PrimaryBtn t={t} type="submit"><Plus size={15} /> Add Category</PrimaryBtn>
         </form>
       </Card>
 
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+      <div style={{ display: "grid", gridTemplateColumns: isMobile ? "1fr 1fr" : "repeat(3, 1fr)", gap: isMobile ? 10 : 14 }}>
         {categories.map((c) => (
           <Card key={c} t={t}>
             <div className="sg" style={{ fontWeight: 700, fontSize: 15 }}>{c}</div>
@@ -917,7 +936,7 @@ function Categories({ t, categories, addCategory, items }) {
 function Modal({ t, title, onClose, children }) {
   return (
     <div onClick={onClose} style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50 }}>
-      <div onClick={(e) => e.stopPropagation()} style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 16, padding: 22, width: 560, maxWidth: "92vw", maxHeight: "88vh", overflowY: "auto" }}>
+      <div onClick={(e) => e.stopPropagation()} style={{ background: t.surface, border: `1px solid ${t.border}`, borderRadius: 16, padding: 18, width: 560, maxWidth: "94vw", maxHeight: "88vh", overflowY: "auto", boxSizing: "border-box" }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 16 }}>
           <div className="sg" style={{ fontWeight: 700, fontSize: 16 }}>{title}</div>
           <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: t.textMuted }}><X size={18} /></button>
